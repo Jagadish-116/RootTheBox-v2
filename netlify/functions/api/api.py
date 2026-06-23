@@ -31,8 +31,8 @@ def get_or_create_session(scenario_id=1):
     
     if session_key in session:
         try:
-            # Rehydrate the exact Virtual Filesystem state from the browser request cookie
-            serialized_data = base64.b64decode(session['session_key'].encode('utf-8'))
+            # ✅ FIXED: Removed quotes so it evaluates the variable key correctly
+            serialized_data = base64.b64decode(session[session_key].encode('utf-8'))
             term_sess = pickle.loads(serialized_data)
             if term_sess.scenario_id == scenario_id:
                 return term_sess
