@@ -1,6 +1,6 @@
 import re
-from .filesystem import MockFilesystem
-from .scenarios import SCENARIOS
+from filesystem import MockFilesystem
+from scenarios import SCENARIOS
 
 class TerminalSession:
     def __init__(self, scenario_id):
