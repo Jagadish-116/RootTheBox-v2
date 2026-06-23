@@ -1,9 +1,9 @@
 [build]
-  publish = "."               # Serves the root templates & static assets directly
-  environment = { PYTHON_VERSION = "3.11" } # Pin stable environment runtime
+  publish = "templates"       # Mandates Netlify to serve index.html directly from templates/
+  environment = { PYTHON_VERSION = "3.11" }
 
 [functions]
-  directory = "netlify/functions" # Points Netlify to your Python operations
+  directory = "netlify/functions"
 
 [[redirects]]
   from = "/api/*"
