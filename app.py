@@ -1,61 +1,27 @@
-import os
-import sys
 import uuid
-import pickle
-import base64
 from flask import Flask, render_template, request, jsonify, session
-import serverless_wsgi
-
-# 🛠️ Fix import pathways for Netlify environment execution runtime
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
 from engine import TerminalSession
 from scenarios import SCENARIOS
 
-app = Flask(__name__)
-# Secure secret key for signing client-side state tracking cookies
+app = Flask(__name__, static_folder='static', template_folder='.')
 app.secret_key = 'cyber_security_lab_secret_key_1337'
 
+# In-memory store for active sessions (Stays alive perfectly on Render!)
+sessions = {}
+
 def get_or_create_session(scenario_id=1):
-    """
-    Retrieves or creates an ephemeral state machine by abstracting 
-    the active session object to and from client-side signed browser cookies.
-    """
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
+        
+    sess_id = session['session_id']
     
-    # Check if a serialized state object already exists in the client cookie
-    session_key = f"state_scenario_{scenario_id}"
-    
-    if session_key in session:
-        try:
-            # ✅ FIXED: Removed quotes so it evaluates the variable key correctly
-            serialized_data = base64.b64decode(session[session_key].encode('utf-8'))
-            term_sess = pickle.loads(serialized_data)
-            if term_sess.scenario_id == scenario_id:
-                return term_sess
-        except Exception:
-            # Fallback if serialization format mismatches or updates
-            pass
-
-    # If no valid cookie state found, instantiate a fresh virtual lab state machine
-    term_sess = TerminalSession(scenario_id)
-    save_session_state(term_sess, scenario_id)
-    return term_sess
-
-def save_session_state(term_sess, scenario_id):
-    """
-    Serializes the ongoing user shell progress and writes it down to the response cookie.
-    """
-    session_key = f"state_scenario_{scenario_id}"
-    serialized_data = base64.b64encode(pickle.dumps(term_sess)).decode('utf-8')
-    session[session_key] = serialized_data
+    if sess_id not in sessions or sessions[sess_id].scenario_id != scenario_id:
+        sessions[sess_id] = TerminalSession(scenario_id)
+        
+    return sessions[sess_id]
 
 @app.route('/')
 def index():
-    # Render fallback or index shell
     return render_template('index.html')
 
 @app.route('/api/scenarios', methods=['GET'])
@@ -84,9 +50,9 @@ def init_scenario():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
         
-    # Instantiate clean scenario runtime and immediately save state down to cookie
-    term_sess = TerminalSession(scenario_id)
-    save_session_state(term_sess, scenario_id)
+    sess_id = session['session_id']
+    sessions[sess_id] = TerminalSession(scenario_id)
+    term_sess = sessions[sess_id]
     
     prompt_user = term_sess.current_user
     cwd = term_sess.current_dir
@@ -116,14 +82,8 @@ def run_command():
     cmd = data.get('cmd', '')
     scenario_id = int(data.get('scenario_id', 1))
     
-    # Pull existing virtual system state directly out of incoming client cookie
     term_sess = get_or_create_session(scenario_id)
-    
-    # Process user action
     stdout, stderr, cwd = term_sess.execute_command(cmd)
-    
-    # Persist updated virtual machine file configuration state back to user cookie
-    save_session_state(term_sess, scenario_id)
     
     return jsonify({
         "stdout": stdout,
@@ -157,12 +117,5 @@ def submit_flag():
             "message": "Incorrect flag. Enumerate further, examine the permissions, and make sure you run the exploit successfully."
         })
 
-# 🚀 Production Serverless Cloud Entrypoint for Netlify Runtime Engine
-def handler(event, context):
-    return serverless_wsgi.handle_request(app, event, context)
-
-# Local diagnostic runtime hook (Only triggers if run outside of Netlify container infrastructure)
 if __name__ == '__main__':
-    print("Starting Windows/Linux Privilege Escalation Lab server locally...")
-    print("Point your browser to http://127.0.0.1:5000")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True)
