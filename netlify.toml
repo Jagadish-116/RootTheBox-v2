@@ -1,9 +1,9 @@
 [build]
-  publish = "templates"       # Mandates Netlify to serve index.html directly from templates/
+  publish = "."               # Serves your root index.html and static assets
   environment = { PYTHON_VERSION = "3.11" }
 
 [functions]
-  directory = "netlify/functions"
+  directory = "netlify/functions" # Points to your serverless backend code
 
 [[redirects]]
   from = "/api/*"
