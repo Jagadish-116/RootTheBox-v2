@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, jsonify, session
 from engine import TerminalSession
 from scenarios import SCENARIOS
 
-app = Flask(__name__, static_folder='static', template_folder='.')
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = 'cyber_security_lab_secret_key_1337'
 
 # In-memory store for active sessions (Stays alive perfectly on Render!)
