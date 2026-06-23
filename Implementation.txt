@@ -1,0 +1,88 @@
+# Windows Privilege Escalation Lab - Implementation Plan
+
+This project aims to build an interactive, web-based local cybersecurity lab focusing on Windows Privilege Escalation techniques. It consists of a Flask (Python) backend simulating a Windows command-line environment and a high-fidelity frontend mimicking a security professional's terminal and dashboard.
+
+To ensure safety and compatibility across all platforms (and to prevent modifying actual system configurations or exposing vulnerable services on your host computer), the lab will run inside a sandboxed, stateful terminal simulator running on the Flask server.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> The target application will run locally. To access the lab environment after launch, you can use the `/browser` command or visit the local Flask URL (typically `http://127.0.0.1:5000`) in your web browser. No actual modifications to your host operating system's security settings are required to run this lab.
+
+---
+
+## Proposed Changes
+
+We will create a Flask project directory under `C:\Users\asus\.gemini\antigravity\scratch\win-privesc-lab`.
+
+### Project Structure
+```
+win-privesc-lab/
+├── app.py                     # Main Flask Application
+├── requirements.txt           # Python dependencies (Flask, etc.)
+├── simulation/
+│   ├── __init__.py
+│   ├── engine.py              # Main terminal parser & command processor
+│   ├── filesystem.py          # Mock Windows NTFS Filesystem state
+│   └── scenarios.py           # Configuration & logic for individual lab scenarios
+├── static/
+│   ├── css/
+│   │   └── style.css          # Vanilla CSS layout & cybersecurity aesthetic (dark, glowing)
+│   └── js/
+│       ├── terminal.js        # Terminal UI behavior, history, tab-completion
+│       └── app.js             # Dashboard tab switching & flag submission logic
+└── templates/
+    └── index.html             # Dashboard UI structure (Instruction, System Diagram, Terminal)
+```
+
+---
+
+### Component Specifications
+
+#### 1. Flask Backend & Command Simulator (`app.py`, `simulation/`)
+- **`app.py`**:
+  - Serves frontend templates.
+  - Keeps track of user session state (filesystem directory, current user, active lab scenario, list of modified files).
+  - Exposes `/api/cmd` endpoint accepting input string and returning stdout, stderr, and current working directory.
+  - Exposes `/api/submit-flag` endpoint to validate flags for each lab.
+- **`simulation/filesystem.py`**:
+  - A mock NTFS structure containing folders (like `C:\Windows\System32`, `C:\Program Files\`, `C:\Users\user\Documents`).
+  - Represents file permissions (e.g., Read/Write/Execute access control list per folder) allowing the simulator to check if a user is allowed to write an exploit payload to a directory.
+- **`simulation/engine.py`**:
+  - Parses Windows commands: `whoami`, `whoami /priv`, `cd`, `dir`, `type`, `echo`, `copy`, `move`, `del`, `mkdir`, `icacls`, `sc`, `reg`, `powershell`, `net`.
+  - Simulates behavior for utility commands like `accesschk.exe` or custom enumeration scripts (`winPEAS.bat` / `PowerUp.ps1`).
+- **`simulation/scenarios.py`**:
+  - Defines the 4 initial labs:
+    1. **Unquoted Service Paths**: User finds a service whose binary path is unquoted and contains spaces (e.g., `C:\Program Files\Vulnerable Software\Service.exe`), where they have write access to `C:\Program Files\Vulnerable Software\`. Overwriting or placing `Program.exe` or `Service.exe` allows escalation.
+    2. **Weak Service Permissions (sc config)**: User finds a service where they have configuration modification rights (`SERVICE_CHANGE_CONFIG`). They can reconfigure the `binPath` to point to a command that adds their user to the Administrators group.
+    3. **AlwaysInstallElevated**: User checks registry settings under HKLM and HKCU for `AlwaysInstallElevated` and executes a malicious `.msi` file.
+    4. **Token Impersonation (Juicy Potato / PrintSpoofer)**: User leverages service account privileges (`SeImpersonatePrivilege`) to spoof a token and run commands as SYSTEM.
+
+#### 2. Premium Cybersecurity Dashboard (`static/`, `templates/`)
+- **Aesthetic Guidelines**:
+  - Sci-fi/Hacker aesthetic with vibrant neon highlights (cyan, electric green, deep purple) on a dark glassmorphic background (frosted blur effect).
+  - Modern typography: Google Fonts (`Outfit` for UI headers, `JetBrains Mono` for terminal and code).
+  - Micro-animations for buttons, terminal inputs, and card selections.
+- **UI Elements**:
+  - **Sidebar**: Easy navigation between Lab Modules, showing completion badges (checkmarks/locks).
+  - **Main Work Area**: Split-screen design.
+    - *Left Panel*: Laboratory Guide (Vulnerability description, learning goals, step-by-step commands to try, tips, mitigation advice, and a Flag Submission input).
+    - *Right Panel*: Simulated Windows Command Line terminal (CMD / PowerShell toggle) displaying interactive output.
+  - **Lab Status / Banner**: Visual diagram representing the path from "User" to "SYSTEM" access, highlighting the currently active state.
+
+---
+
+## Verification Plan
+
+### Automated Verification
+We will run a short test script to verify that:
+1. The simulated shell accurately parses and executes traversal commands (`cd`, `dir`).
+2. Exploit payloads written to vulnerable directories trigger the escalation flag.
+3. The Flask app boots successfully on port 5000.
+
+### Manual Verification
+1. Boot up the local Flask server (`python app.py`).
+2. Visit `http://127.0.0.1:5000` or run `/browser` to open the app.
+3. Complete each of the four modules manually to verify the terminal simulator reacts exactly like a real Windows command prompt.

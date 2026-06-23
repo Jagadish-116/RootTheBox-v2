@@ -1,0 +1,11 @@
+[build]
+  publish = "."               # Serves the root templates & static assets directly
+  environment = { PYTHON_VERSION = "3.11" } # Pin stable environment runtime
+
+[functions]
+  directory = "netlify/functions" # Points Netlify to your Python operations
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
